@@ -17,8 +17,10 @@
 
 import re
 import os
+
 from copy import deepcopy
 from lettuce import strings
+from lettuce.languages import LANGUAGES
 from lettuce.registry import STEP_REGISTRY
 from lettuce.registry import CALLBACK_REGISTRY
 from lettuce.exceptions import ReasonToFail
@@ -37,6 +39,18 @@ def parse_hashes(lines):
             hashes.append(dict(zip(keys, values)))
 
     return keys, hashes
+
+class Language(object):
+    def __init__(self, code='en'):
+        self._code = code
+        self._root = LANGUAGES[code]
+
+    def __getattr__(self, attr):
+        if attr.startswith("_"):
+            return super(Language, self).__getattribute__(attr)
+
+        ret = r"(%s)" % "|".join(map(re.escape, self._root[attr].split("|")))
+        return ret
 
 class StepDefinition(object):
     """A step definition is a wrapper for user-defined callbacks. It
@@ -436,10 +450,14 @@ class Scenario(object):
         return "\n".join([(" " * self.table_indentation) + line for line in lines]) + '\n'
 
     @classmethod
-    def from_string(new_scenario, string, with_file=None, original_string=None):
+    def from_string(new_scenario, string,
+                    with_file=None, original_string=None, language=None):
         """ Creates a new scenario from string"""
 
-        splitted = strings.split_wisely(string, "Example[s]?[:]", True)
+        if not language:
+            language = Language()
+
+        splitted = strings.split_wisely(string, "%s[:]" % language.examples, True)
         string = splitted[0]
         keys = []
         outlines = []
@@ -449,7 +467,10 @@ class Scenario(object):
 
         lines = strings.get_stripped_lines(string)
         scenario_line = lines.pop(0)
-        line = strings.remove_it(scenario_line, "Scenario( Outline)?[:] ")
+        if outlines:
+            line = strings.remove_it(scenario_line, "%s[:] " % language.scenario_outline)
+        else:
+            line = strings.remove_it(scenario_line, "%s[:] " % language.scenario)
 
         scenario =  new_scenario(name=line,
                                  remaining_lines=lines,
@@ -463,14 +484,14 @@ class Scenario(object):
 class Feature(object):
     """ Object that represents a feature."""
     described_at = None
-    def __init__(self, name, remaining_lines, with_file, original_string):
+    def __init__(self, name, remaining_lines, with_file, original_string, language=None):
         self.name = name
         self.scenarios, self.description = self._parse_remaining_lines(
             remaining_lines,
             original_string,
             with_file
         )
-
+        self.language = language
         self.original_string = original_string
 
         if with_file:
@@ -517,11 +538,20 @@ class Feature(object):
         return head
 
     @classmethod
+    def language_from_string(self, string):
+        matched = re.search('language:[ ]*(\w+.*)', string)
+        if matched:
+            return Language(matched.groups()[0])
+
+        return Language()
+
+    @classmethod
     def from_string(new_feature, string, with_file=None):
         """Creates a new feature from string"""
         lines = strings.get_stripped_lines(string)
+        language = new_feature.language_from_string(string)
 
-        found = len(re.findall(r'Feature:[ ]*\w+', string))
+        found = len(re.findall(r'%s:[ ]*\w+' % language.feature, string))
 
         if found > 1:
             raise LettuceSyntaxError(
@@ -538,9 +568,9 @@ class Feature(object):
 
         while lines:
 
-            matched = re.search(r'Feature:(.*)', lines[0], re.I)
+            matched = re.search(r'%s:(.*)' % language.feature, lines[0], re.I)
             if matched:
-                name = matched.groups()[0].strip()
+                name = matched.groups()[-1].strip()
                 break
 
             lines.pop(0)
@@ -548,7 +578,8 @@ class Feature(object):
         feature = new_feature(name=name,
                               remaining_lines=lines,
                               with_file=with_file,
-                              original_string=string)
+                              original_string=string,
+                              language=language)
         return feature
 
     @classmethod

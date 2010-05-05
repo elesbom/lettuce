@@ -130,16 +130,32 @@ Feature: Big scenario outline
     | 3                                                            |
 """
 
-FEATURE_PTBR = u"""
-Funcionalidade: Alugar filmes
-    Cenário: Renting a featured movie
-        Given I have the following movies in my database
-           | Name                    | Rating  | New | Available |
-           | Matrix Revolutions      | 4 stars | no  | 6         |
-           | Iron Man 2              | 5 stars | yes | 11        |
-        When the client 'John Doe' rents 'Iron man 2'
-        Then he needs to pay 10 bucks
-"""
+FEATURE_PT = u'''
+# language: pt
+Funcionalidade: Locadora de filmes
+    Como um empreendedor
+    Eu quero alugar filmes
+    Para ganhar dinheiro!
+
+    Cenário: Alugando um lançamento
+       Dado que eu tenho os seguintes filmes no meu banco de dados:
+           | Nome                    | Lançamento |
+           | Matrix Revolutions      | sim        |
+           | Homem de Ferro 2        | não        |
+        Quando o cliente "Joaquim" aluga "Homem de Ferro 2"
+        Então ele paga 20 reais
+
+    Esquema do Cenário: Cadastro de usuário
+        Dado que eu preencho o campo "nome" com "<nome>"
+        E que preencho o campo "email" com "<email>"
+        Quando eu clico em "salvar"
+        Então eu vejo a mensagem "você receberá uma confirmação em <email>"
+    Exemplos:
+        | nome    | email             |
+        | Joaquim | joaquim@email.com |
+        | Manuel  | manuel@lettuce.it |
+'''
+
 def test_feature_has_repr():
     "Feature implements __repr__ nicely"
     feature = Feature.from_string(FEATURE1)
@@ -292,3 +308,35 @@ def test_description_on_big_sentenced_steps():
         "So that I can take care of my Scenario"
     )
 
+def test_feature_ptbr():
+    "Test language support for portuguese (pt)"
+    feature = Feature.from_string(FEATURE_PT)
+
+    assert_equals(feature.name, 'Locadora de filmes')
+
+    assert_equals(
+        feature.description,
+        'Como um empreendedor\n'
+        'Eu quero alugar filmes\n'
+        'Para ganhar dinheiro!'
+    )
+
+    assert_equals(len(feature.scenarios), 2)
+
+    cenario1, cenario2 = feature.scenarios
+
+    assert_equals(cenario1.name, u'Alugando um lançamento')
+    assert_equals(cenario2.name, u'Cadastro de usuário')
+    assert_equals(
+        cenario2.outlines,
+        [
+            {
+                'nome': 'Joaquim',
+                'email': 'joaquim@email.com'
+            },
+            {
+                'nome': 'Manuel',
+                'email': 'manuel@lettuce.it'
+            },
+        ]
+    )
