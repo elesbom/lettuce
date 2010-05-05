@@ -25,9 +25,13 @@ setup(name='lettuce',
     author_email='gabriel@nacaolivre.org',
     url='http://github.com/gabrielfalcao/lettuce',
     scripts = ['lettuce/lettuce'],
+    package_data = {
+        'lettuce': ['languages.yml'],
+    },
     packages=[
           'lettuce',
           'lettuce.plugins'
-    ]
+    ],
+    requires=['pyyaml'],
 )
 

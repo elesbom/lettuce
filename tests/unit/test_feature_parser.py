@@ -130,7 +130,16 @@ Feature: Big scenario outline
     | 3                                                            |
 """
 
-
+FEATURE_PTBR = u"""
+Funcionalidade: Alugar filmes
+    Cenário: Renting a featured movie
+        Given I have the following movies in my database
+           | Name                    | Rating  | New | Available |
+           | Matrix Revolutions      | 4 stars | no  | 6         |
+           | Iron Man 2              | 5 stars | yes | 11        |
+        When the client 'John Doe' rents 'Iron man 2'
+        Then he needs to pay 10 bucks
+"""
 def test_feature_has_repr():
     "Feature implements __repr__ nicely"
     feature = Feature.from_string(FEATURE1)
